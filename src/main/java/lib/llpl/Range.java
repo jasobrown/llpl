@@ -181,11 +181,11 @@ public final class Range {
 
     int addToTransaction() {
     	checkValid();
-        return AnyMemoryBlock.nativeAddRangeToTransaction(block.heap().poolHandle(), block.payloadAddress(startOffset), rangeLength);
+        return AnyMemoryBlock.pmemllpl_memblock_nativeAddRangeToTransaction(block.heap().poolHandle(), block.payloadAddress(startOffset), rangeLength);
     }
 
     void addToTransactionNoCheck() {
     	checkValid();
-        AnyMemoryBlock.nativeAddToTransactionNoCheck(block.payloadAddress(startOffset), rangeLength);
+        AnyMemoryBlock.pmemllpl_memblock_nativeAddToTransactionNoCheck(block.payloadAddress(startOffset), rangeLength);
     }
 }

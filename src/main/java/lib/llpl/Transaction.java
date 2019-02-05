@@ -1,8 +1,8 @@
-/* 
+/*
  * Copyright (C) 2018 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
- * 
+ *
  */
 
 package lib.llpl;
@@ -26,10 +26,10 @@ import java.util.function.Consumer;
  */
 public final class Transaction {
     static {
-        System.loadLibrary("llpl");
+        AnyHeap.loadLlplLibrary();
     }
 
-    private State state; 
+    private State state;
     private int depth;
     private final boolean doStart;
     private final AnyHeap heap;
@@ -46,54 +46,54 @@ public final class Transaction {
 
     Transaction(AnyHeap heap, boolean doStart) {
         this.heap = heap;
-        this.state = State.New;    
-        this.doStart = doStart;    
+        this.state = State.New;
+        this.doStart = doStart;
     }
 
     /**
-    * Returns the current state of this transaction.
-    * @return the current state of this transaction
-    */
+     * Returns the current state of this transaction.
+     * @return the current state of this transaction
+     */
     public State state() {
         return state;
     }
 
     /**
-    * Transactionally executes the supplied body. Transactional modifications are limited to specified heap.
-    * @param heap the heap associated with the transactional execution
-    * @param body the function representing the transaction body function
-    */
+     * Transactionally executes the supplied body. Transactional modifications are limited to specified heap.
+     * @param heap the heap associated with the transactional execution
+     * @param body the function representing the transaction body function
+     */
     public static void run(AnyHeap heap, Runnable body) {
         run(heap, () -> {body.run(); return (Void)null;});
     }
 
     /**
-    * Transactionally executes the supplied body. Transactional modifications are limited to specified heap.
-    * @param heap the heap associated with the transactional execution
-    * @param body the function representing the transaction body function
-    * @param <T> the return type of the supplied fuction
-    * @return the value returned by the body function
-    */
+     * Transactionally executes the supplied body. Transactional modifications are limited to specified heap.
+     * @param heap the heap associated with the transactional execution
+     * @param body the function representing the transaction body function
+     * @param <T> the return type of the supplied fuction
+     * @return the value returned by the body function
+     */
     public static <T> T run(AnyHeap heap, Supplier<T> body) {
         return internalRun(new Transaction(heap), null, (Range r) -> {return body.get();});
     }
 
     /**
-    * Transactionally executes the supplied body as part of this {@code Transaction}. 
-    * Transactional modifications are limited to heap associated with this transaction.
-    * @param body the function representing the transaction body function
-    */
+     * Transactionally executes the supplied body as part of this {@code Transaction}.
+     * Transactional modifications are limited to heap associated with this transaction.
+     * @param body the function representing the transaction body function
+     */
     public void run(Runnable body) {
         run(null, (Range r) -> {body.run(); return (Void)null;});
     }
 
     /**
-    * Transactionally executes the supplied body as part of this {@code Transaction}. 
-    * Transactional modifications are limited to heap associated with this transaction.
-    * @param body the function representing the transaction body function
-    * @param <T> the return type of the supplied fuction
-    * @return the value returned by the body function
-    */
+     * Transactionally executes the supplied body as part of this {@code Transaction}.
+     * Transactional modifications are limited to heap associated with this transaction.
+     * @param body the function representing the transaction body function
+     * @param <T> the return type of the supplied fuction
+     * @return the value returned by the body function
+     */
     public <T> T run(Supplier<T> body) {
         return run(null, (Range r) -> {return body.get();});
     }
@@ -109,7 +109,7 @@ public final class Transaction {
     private static <T> T internalRun(Transaction transaction, Range range, Function<Range, T> body) {
         if (transaction.state == State.New) {
             if (transaction.doStart) {
-                int result = nativeStartTransaction(transaction.heap.poolHandle());
+                int result = pmemllpl_tx_start(transaction.heap.poolHandle());
                 if (result == -1) throw new IllegalStateException("Error starting transaction.");
             }
             transaction.state = State.Active;
@@ -123,13 +123,13 @@ public final class Transaction {
         }
         catch (Throwable t) {
             // System.out.format("Transaction %s, caught %s, state = %s, depth = %d\n", transaction, t, transaction.state, transaction.depth);
-            if (transaction.state == State.Active) nativeAbortTransaction();
+            if (transaction.state == State.Active) pmemllpl_tx_abort();
             transaction.state = State.Aborted;
             throw t;
         }
         finally {
             if (transaction.state == Transaction.State.Active && transaction.depth == 1) {
-                nativeCommitTransaction();
+                pmemllpl_tx_commit();
                 transaction.state = State.Committed;
             }
             transaction.depth--;
@@ -143,12 +143,12 @@ public final class Transaction {
     }
 
     static boolean isTransactionActive() {
-        return nativeTransactionState() == 2;
+        return pmemllpl_tx_state() == 2;
     }
 
-    private static native int nativeStartTransaction(long poolHandle);
-    private static native void nativeCommitTransaction();
-    private static native void nativeEndTransaction();
-    private static native void nativeAbortTransaction();
-    private static native int nativeTransactionState();
+    private static native int pmemllpl_tx_start(long poolHandle);
+    private static native void pmemllpl_tx_commit();
+    private static native void pmemllpl_tx_end();
+    private static native void pmemllpl_tx_abort();
+    private static native int pmemllpl_tx_state();
 }

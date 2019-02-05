@@ -7,7 +7,6 @@
 
 package lib.llpl;
 
-import java.util.function.Supplier;
 import java.util.function.Function;
 import java.util.function.Consumer;
 
@@ -30,7 +29,7 @@ public abstract class AnyMemoryBlock {
     private long directAddress; // TODO: consider rename to address or blockAddress
 
     static {
-        System.loadLibrary("llpl");
+        AnyHeap.loadLlplLibrary();
     }
 
     // Constructor
@@ -422,11 +421,11 @@ public abstract class AnyMemoryBlock {
     }
 
     void internalFlush(long offset, long size) {
-        if (!ELIDE_FLUSHES) nativeFlush(payloadAddress(offset), size);
+        if (!ELIDE_FLUSHES) pmemllpl_memblock_flush(payloadAddress(offset), size);
     }
 
     static void flushAbsolute(long address, long size) {
-        if (!ELIDE_FLUSHES) nativeFlush(address, size);
+        if (!ELIDE_FLUSHES) pmemllpl_memblock_flush(address, size);
     }
 
     void addToTransaction() {
@@ -436,17 +435,17 @@ public abstract class AnyMemoryBlock {
     void addToTransaction(long offset, long size) {
         checkValid();
         checkBounds(offset, size);
-        int result = nativeAddToTransaction(heap().poolHandle(), payloadAddress(offset), size);
+        int result = pmemllpl_memblock_nativeAddToTransaction(heap().poolHandle(), payloadAddress(offset), size);
         if (result != 2) throw new IllegalStateException("No transaction active.");
     }
 
     boolean addToTransactionNoCheck(long offset, long size) {
-        return nativeAddToTransaction(heap().poolHandle(), payloadAddress(offset), size) == 2;
+        return pmemllpl_memblock_nativeAddToTransaction(heap().poolHandle(), payloadAddress(offset), size) == 2;
     }
 
     void setPersistentSize(long size) {
         long address = directAddress + SIZE_OFFSET;
-        nativeAddToTransaction(heap().poolHandle(), address, 8);
+        pmemllpl_memblock_nativeAddToTransaction(heap().poolHandle(), address, 8);
         setAbsoluteLong(address, size);
         this.size = size;     
     }
@@ -554,8 +553,8 @@ public abstract class AnyMemoryBlock {
         return buff.toString();
     }
 
-    private native static void nativeFlush(long address, long size);
-    private native static int nativeAddToTransaction(long poolHandle, long address, long size);
-    native static void nativeAddToTransactionNoCheck(long address, long size);
-    native static int nativeAddRangeToTransaction(long poolHandle, long address, long size);
+    private native static void pmemllpl_memblock_flush(long address, long size);
+    private native static int pmemllpl_memblock_nativeAddToTransaction(long poolHandle, long address, long size);
+    native static void pmemllpl_memblock_nativeAddToTransactionNoCheck(long address, long size);
+    native static int pmemllpl_memblock_nativeAddRangeToTransaction(long poolHandle, long address, long size);
 }

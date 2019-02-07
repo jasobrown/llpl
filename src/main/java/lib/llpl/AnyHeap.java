@@ -127,7 +127,7 @@ public abstract class AnyHeap {
         if (userSizes.size() == MAX_USER_CLASSES) throw new HeapException("Max allocation size count reached.");
         long effectiveSize = 0L;
         if (!userSizes.containsKey(effectiveSize = (size + (unbounded ? 0L : Long.BYTES)))) {
-            int id = pmemllpl_heap_RegisterAllocationClass(poolHandle, effectiveSize);
+            int id = pmemllpl_heap_register_alloc_class(poolHandle, effectiveSize);
             if (id != -1) {
                 int i = USER_CLASS_INDEX + (userSizes.size() * 2);
                 userSizes.put(effectiveSize, id);
@@ -314,11 +314,11 @@ public abstract class AnyHeap {
     private static native int pmemllpl_heap_free_atomic(long addr);
 
     private static synchronized native long pmemllpl_heap_open(String path, long size, long[] allocationClasses);
-    private static synchronized native int pmemllpl_heap_RegisterAllocationClass(long poolHandle, long size);
+    private static synchronized native int pmemllpl_heap_register_alloc_class(long poolHandle, long size);
     private static synchronized native void pmemllpl_heap_close(long poolHandle);
 
     private static synchronized native int pmemllpl_heap_set_root(long poolHandle, long val);
     private static synchronized native long pmemllpl_heap_get_root(long poolHandle);
-    private static native long pmemllpl_heap_DirectAddress(long poolId, long offset);
+    private static native long pmemllpl_heap_direct_addr(long poolId, long offset);
     private static native long pmemllpl_heap_size(String path);
 }

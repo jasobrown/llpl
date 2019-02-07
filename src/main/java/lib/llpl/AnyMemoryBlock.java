@@ -37,6 +37,9 @@ public abstract class AnyMemoryBlock {
         this.heap = heap;
         // System.out.println("creating AMB of size " + size + ", bounded = " + bounded + ", transactional = " + transactional);
         long allocSize = size + baseOffset();
+
+        // JEB: do we really need a Transaction instance here when transactional is true?
+        // the JNI code will open it's own tx around the allocation, so it seems unnecessary in java-land
         Runnable body = () -> {
             this.address = transactional ? heap.allocateTransactional(allocSize) : heap.allocateAtomic(allocSize);
             if (address == 0) throw new HeapException("Failed to allocate memory block of size " + size);
@@ -421,31 +424,20 @@ public abstract class AnyMemoryBlock {
     }
 
     void internalFlush(long offset, long size) {
-        if (!ELIDE_FLUSHES) pmemllpl_memblock_flush(payloadAddress(offset), size);
-    }
-
-    static void flushAbsolute(long address, long size) {
-        if (!ELIDE_FLUSHES) pmemllpl_memblock_flush(address, size);
-    }
-
-    void addToTransaction() {
-        addToTransaction(0, size());
+        // TODO:JEB temp commenting this out cuz I'm not sure it was worthwhile
+        //if (!ELIDE_FLUSHES) pmemllpl_memblock_flush(payloadAddress(offset), size);
     }
 
     void addToTransaction(long offset, long size) {
         checkValid();
         checkBounds(offset, size);
-        int result = pmemllpl_memblock_nativeAddToTransaction(heap().poolHandle(), payloadAddress(offset), size);
+        int result = pmemllpl_memblock_add_to_tx(heap().poolHandle(), payloadAddress(offset), size);
         if (result != 2) throw new IllegalStateException("No transaction active.");
-    }
-
-    boolean addToTransactionNoCheck(long offset, long size) {
-        return pmemllpl_memblock_nativeAddToTransaction(heap().poolHandle(), payloadAddress(offset), size) == 2;
     }
 
     void setPersistentSize(long size) {
         long address = directAddress + SIZE_OFFSET;
-        pmemllpl_memblock_nativeAddToTransaction(heap().poolHandle(), address, 8);
+        pmemllpl_memblock_add_to_tx(heap().poolHandle(), address, 8);
         setAbsoluteLong(address, size);
         this.size = size;     
     }
@@ -553,8 +545,5 @@ public abstract class AnyMemoryBlock {
         return buff.toString();
     }
 
-    private native static void pmemllpl_memblock_flush(long address, long size);
-    private native static int pmemllpl_memblock_nativeAddToTransaction(long poolHandle, long address, long size);
-    native static void pmemllpl_memblock_nativeAddToTransactionNoCheck(long address, long size);
-    native static int pmemllpl_memblock_nativeAddRangeToTransaction(long poolHandle, long address, long size);
+    native static int pmemllpl_memblock_add_to_tx(long poolHandle, long address, long size);
 }

@@ -41,16 +41,6 @@ public final class MemoryBlock extends AbstractMemoryBlock {
     }
 
     /**
-    * Adds this memory block's range of of bytes to the current transaction.
-    * Any modifications to this range of bytes will be committed on successful completion of the current
-    * transaction or rolled-back on abort of the current transaction
-    */
-    @Override
-    public void addToTransaction() {
-        super.addToTransaction(0, size());
-    }
-
-    /**
      * Returns the allocated size, in bytes, of this memory block.  
      * @return the allocated size, in bytes, of this memory block
      */

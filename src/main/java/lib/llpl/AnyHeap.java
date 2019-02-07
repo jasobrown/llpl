@@ -240,7 +240,7 @@ public abstract class AnyHeap {
 
     void freeMemoryBlock(AnyMemoryBlock block, boolean transactional) {
         checkValid();
-        int result = transactional ? pmemllpl_heap_free(poolHandle, block.directAddress()) : pmemllpl_heap_FreeAtomic(block.directAddress());
+        int result = transactional ? pmemllpl_heap_free_tx(poolHandle, block.directAddress()) : pmemllpl_heap_free_atomic(block.directAddress());
         if (result < 0) {
             throw new HeapException("Failed to free block.");
         }
@@ -252,11 +252,11 @@ public abstract class AnyHeap {
     }
 
     long allocateTransactional(long size) {
-        return pmemllpl_heap_AllocateTransactional(poolHandle, size, getAllocationClassIndex(size));
+        return pmemllpl_heap_alloc_tx(poolHandle, size, getAllocationClassIndex(size));
     }
 
     long allocateAtomic(long size) {
-        return pmemllpl_heap_AllocateAtomic(poolHandle, size, getAllocationClassIndex(size));
+        return pmemllpl_heap_alloc_atomic(poolHandle, size, getAllocationClassIndex(size));
     }
 
     int getAllocationClassIndex(long size) {
@@ -307,13 +307,16 @@ public abstract class AnyHeap {
         return poolHandle + offset;
     }
 
-    private static native long pmemllpl_heap_AllocateTransactional(long poolHandle, long size, int class_index);
-    private static native long pmemllpl_heap_AllocateAtomic(long poolHandle, long size, int class_index);
-    private static native int pmemllpl_heap_free(long poolHandle, long addr);
-    private static native int pmemllpl_heap_FreeAtomic(long addr);
+    private static native long pmemllpl_heap_alloc_tx(long poolHandle, long size, int class_index);
+    private static native long pmemllpl_heap_alloc_atomic(long poolHandle, long size, int class_index);
+
+    private static native int pmemllpl_heap_free_tx(long poolHandle, long addr);
+    private static native int pmemllpl_heap_free_atomic(long addr);
+
     private static synchronized native long pmemllpl_heap_open(String path, long size, long[] allocationClasses);
     private static synchronized native int pmemllpl_heap_RegisterAllocationClass(long poolHandle, long size);
     private static synchronized native void pmemllpl_heap_close(long poolHandle);
+
     private static synchronized native int pmemllpl_heap_set_root(long poolHandle, long val);
     private static synchronized native long pmemllpl_heap_get_root(long poolHandle);
     private static native long pmemllpl_heap_DirectAddress(long poolId, long offset);

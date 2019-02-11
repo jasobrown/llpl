@@ -28,23 +28,6 @@ import com.sun.jna.Native;
  * the body.
  */
 public final class Transaction {
-    static {
-        loadLlplLibrary();
-    }
-
-    static void loadLlplLibrary() {
-        try {
-            Native.register(com.sun.jna.NativeLibrary.getInstance("pmemllpl", Collections.emptyMap()));
-        } catch (NoClassDefFoundError e) {
-            throw new RuntimeException("JNA not found; cannot invoke pmemllpl functions", e);
-        } catch (UnsatisfiedLinkError e) {
-            throw new RuntimeException("Failed to link the pmemllpl library against JNA.", e);
-        } catch (NoSuchMethodError e) {
-            throw new RuntimeException("Obsolete version of JNA present; unable to register C library. Upgrade to JNA 4.0 or later", e);
-        }
-    }
-
-
     private State state;
     private int depth;
     private final boolean doStart;
@@ -125,7 +108,7 @@ public final class Transaction {
     private static <T> T internalRun(Transaction transaction, Range range, Function<Range, T> body) {
         if (transaction.state == State.New) {
             if (transaction.doStart) {
-                int result = pmemllpl_tx_start(transaction.heap.poolHandle());
+                int result = NativeLLPL.pmemllpl_tx_start(transaction.heap.poolHandle());
                 if (result == -1) throw new IllegalStateException("Error starting transaction.");
             }
             transaction.state = State.Active;
@@ -139,13 +122,13 @@ public final class Transaction {
         }
         catch (Throwable t) {
             // System.out.format("Transaction %s, caught %s, state = %s, depth = %d\n", transaction, t, transaction.state, transaction.depth);
-            if (transaction.state == State.Active) pmemllpl_tx_abort();
+            if (transaction.state == State.Active) NativeLLPL.pmemllpl_tx_abort();
             transaction.state = State.Aborted;
             throw t;
         }
         finally {
             if (transaction.state == Transaction.State.Active && transaction.depth == 1) {
-                pmemllpl_tx_commit();
+                NativeLLPL.pmemllpl_tx_commit();
                 transaction.state = State.Committed;
             }
             transaction.depth--;
@@ -159,12 +142,6 @@ public final class Transaction {
     }
 
     static boolean isTransactionActive() {
-        return pmemllpl_tx_state() == 2;
+        return NativeLLPL.pmemllpl_tx_state() == 2;
     }
-
-    private static native int pmemllpl_tx_start(long poolHandle);
-    static native void pmemllpl_tx_commit();
-    static native void pmemllpl_tx_end();
-    private static native void pmemllpl_tx_abort();
-    public static native int pmemllpl_tx_state();
 }

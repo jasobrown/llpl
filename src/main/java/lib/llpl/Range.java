@@ -181,13 +181,13 @@ public final class Range {
 
     int addToTransaction() {
     	checkValid();
-        return AnyMemoryBlock.pmemllpl_memblock_add_to_tx(block.heap().poolHandle(), block.payloadAddress(startOffset), rangeLength);
+        return NativeLLPL.pmemllpl_memblock_add_to_tx(block.heap().poolHandle(), block.payloadAddress(startOffset), rangeLength);
     }
 
     // TODO:JEB i've temporarily killed off the 'no check' native function.
     //  was that were the real perf pain was???
     void addToTransactionNoCheck() {
     	checkValid();
-        AnyMemoryBlock.pmemllpl_memblock_add_to_tx(block.heap().poolHandle(), block.payloadAddress(startOffset), rangeLength);
+        NativeLLPL.pmemllpl_memblock_add_to_tx(block.heap().poolHandle(), block.payloadAddress(startOffset), rangeLength);
     }
 }

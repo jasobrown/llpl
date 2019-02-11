@@ -22,7 +22,6 @@ import sun.misc.Unsafe;
  */
 public abstract class AnyHeap {
     static {
-        loadLlplLibrary();
         try {
             java.lang.reflect.Field f = Unsafe.class.getDeclaredField("theUnsafe");
             f.setAccessible(true);
@@ -30,18 +29,6 @@ public abstract class AnyHeap {
         }
         catch (Exception e) {
             throw new RuntimeException("Unable to initialize UNSAFE.");
-        }
-    }
-
-    static void loadLlplLibrary() {
-        try {
-            Native.register(com.sun.jna.NativeLibrary.getInstance("pmemllpl", Collections.emptyMap()));
-        } catch (NoClassDefFoundError e) {
-            throw new RuntimeException("JNA not found; cannot invoke pmemllpl functions", e);
-        } catch (UnsatisfiedLinkError e) {
-            throw new RuntimeException("Failed to link the pmemllpl library against JNA.", e);
-        } catch (NoSuchMethodError e) {
-            throw new RuntimeException("Obsolete version of JNA present; unable to register C library. Upgrade to JNA 4.0 or later", e);
         }
     }
 
@@ -63,10 +50,10 @@ public abstract class AnyHeap {
         this.path = path;
         userSizes = new TreeMap<Long, Integer>();
         allocationClasses = new long[TOTAL_ALLOCATION_CLASSES];
-        poolHandle = pmemllpl_heap_open(path, requestedSize);
+        poolHandle = NativeLLPL.pmemllpl_heap_open(path, requestedSize);
         if (poolHandle == 0) throw new RuntimeException("Failed to open heap.");
         valid = true;
-        if (requestedSize == 0) this.size = pmemllpl_heap_size(path);
+        if (requestedSize == 0) this.size = NativeLLPL.pmemllpl_heap_size(path);
         else this.size = requestedSize;
         metadata = initializeMetadata(this.size);
         open = true;
@@ -79,11 +66,11 @@ public abstract class AnyHeap {
         private AnyMemoryBlock metaBlock;
 
         public Metadata(AnyHeap heap, AnyMemoryBlock block, long size) {
-            long metadataHandle = pmemllpl_heap_get_root(heap.poolHandle());
+            long metadataHandle = NativeLLPL.pmemllpl_heap_get_root(heap.poolHandle());
             if (metadataHandle == 0) {
                 this.metaBlock = block;
                 metaBlock.setLong(HEAP_SIZE_OFFSET, size);
-                int result = pmemllpl_heap_set_root(heap.poolHandle(), metaBlock.handle());
+                int result = NativeLLPL.pmemllpl_heap_set_root(heap.poolHandle(), metaBlock.handle());
                 if (result != 0) throw new HeapException("Failed to initialize heap root");
             }
             else {
@@ -109,7 +96,7 @@ public abstract class AnyHeap {
      */
     public void close() {
         checkValid();
-        pmemllpl_heap_close(poolHandle);
+        NativeLLPL.pmemllpl_heap_close(poolHandle);
         heaps.remove(path);
         markInvalid(this);
     }
@@ -127,7 +114,7 @@ public abstract class AnyHeap {
         if (userSizes.size() == MAX_USER_CLASSES) throw new HeapException("Max allocation size count reached.");
         long effectiveSize = 0L;
         if (!userSizes.containsKey(effectiveSize = (size + (unbounded ? 0L : Long.BYTES)))) {
-            int id = pmemllpl_heap_register_alloc_class(poolHandle, effectiveSize);
+            int id = NativeLLPL.pmemllpl_heap_register_alloc_class(poolHandle, effectiveSize);
             if (id != -1) {
                 int i = USER_CLASS_INDEX + (userSizes.size() * 2);
                 userSizes.put(effectiveSize, id);
@@ -240,7 +227,7 @@ public abstract class AnyHeap {
 
     void freeMemoryBlock(AnyMemoryBlock block, boolean transactional) {
         checkValid();
-        int result = transactional ? pmemllpl_heap_free_tx(poolHandle, block.directAddress()) : pmemllpl_heap_free_atomic(block.directAddress());
+        int result = transactional ? NativeLLPL.pmemllpl_heap_free_tx(poolHandle, block.directAddress()) : NativeLLPL.pmemllpl_heap_free_atomic(block.directAddress());
         if (result < 0) {
             throw new HeapException("Failed to free block.");
         }
@@ -252,11 +239,11 @@ public abstract class AnyHeap {
     }
 
     long allocateTransactional(long size) {
-        return pmemllpl_heap_alloc_tx(poolHandle, size, getAllocationClassIndex(size));
+        return NativeLLPL.pmemllpl_heap_alloc_tx(poolHandle, size, getAllocationClassIndex(size));
     }
 
     long allocateAtomic(long size) {
-        return pmemllpl_heap_alloc_atomic(poolHandle, size, getAllocationClassIndex(size));
+        return NativeLLPL.pmemllpl_heap_alloc_atomic(poolHandle, size, getAllocationClassIndex(size));
     }
 
     int getAllocationClassIndex(long size) {
@@ -306,20 +293,4 @@ public abstract class AnyHeap {
     long directAddress(long offset) {
         return poolHandle + offset;
     }
-
-    private static native long pmemllpl_heap_alloc_tx(long poolHandle, long size, int class_index);
-    private static native long pmemllpl_heap_alloc_atomic(long poolHandle, long size, int class_index);
-
-    private static native int pmemllpl_heap_free_tx(long poolHandle, long addr);
-    private static native int pmemllpl_heap_free_atomic(long addr);
-
-    private static synchronized native long pmemllpl_heap_open(String path, long size);
-//    private static synchronized native long pmemllpl_heap_open(String path, long size, long[] allocationClasses);
-    private static synchronized native int pmemllpl_heap_register_alloc_class(long poolHandle, long size);
-    private static synchronized native void pmemllpl_heap_close(long poolHandle);
-
-    private static synchronized native int pmemllpl_heap_set_root(long poolHandle, long val);
-    private static synchronized native long pmemllpl_heap_get_root(long poolHandle);
-    private static native long pmemllpl_heap_direct_addr(long poolId, long offset);
-    private static native long pmemllpl_heap_size(String path);
 }

@@ -31,26 +31,6 @@ public abstract class AnyMemoryBlock {
     private long address;       // TODO: consider rename to offset or blockOffset
     private long directAddress; // TODO: consider rename to address or blockAddress
 
-//    static {
-//        AnyHeap.loadLlplLibrary();
-//    }
-    static {
-        loadLlplLibrary();
-    }
-
-    static void loadLlplLibrary() {
-        try {
-            Native.register(com.sun.jna.NativeLibrary.getInstance("pmemllpl", Collections.emptyMap()));
-        } catch (NoClassDefFoundError e) {
-            throw new RuntimeException("JNA not found; cannot invoke pmemllpl functions", e);
-        } catch (UnsatisfiedLinkError e) {
-            throw new RuntimeException("Failed to link the pmemllpl library against JNA.", e);
-        } catch (NoSuchMethodError e) {
-            throw new RuntimeException("Obsolete version of JNA present; unable to register C library. Upgrade to JNA 4.0 or later", e);
-        }
-    }
-
-
     // Constructor
     AnyMemoryBlock(AnyHeap heap, long size, boolean bounded, boolean transactional) {
         this.heap = heap;
@@ -451,17 +431,17 @@ public abstract class AnyMemoryBlock {
     void addToTransaction(long offset, long size) {
         checkValid();
         checkBounds(offset, size);
-        int result = pmemllpl_memblock_add_to_tx(heap().poolHandle(), payloadAddress(offset), size);
+        int result = NativeLLPL.pmemllpl_memblock_add_to_tx(heap().poolHandle(), payloadAddress(offset), size);
         if (result != 2) throw new IllegalStateException("No transaction active.");
     }
 
     void setPersistentSize(long size) {
         long address = directAddress + SIZE_OFFSET;
-        int result = pmemllpl_memblock_add_to_tx(heap().poolHandle(), address, 8);
+        int result = NativeLLPL.pmemllpl_memblock_add_to_tx(heap().poolHandle(), address, 8);
 
         // TODO:JEB this is a hack around my crappy impl and use of pmemllpl_memblock_add_to_tx
         if (result == 1)
-            Transaction.pmemllpl_tx_commit();
+            NativeLLPL.pmemllpl_tx_commit();
 
         setAbsoluteLong(address, size);
         this.size = size;     
@@ -569,6 +549,4 @@ public abstract class AnyMemoryBlock {
         buff.append(getByte(size() - 1)).append("]");
         return buff.toString();
     }
-
-    native static int pmemllpl_memblock_add_to_tx(long poolHandle, long address, long size);
 }

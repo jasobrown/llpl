@@ -7,9 +7,12 @@
 
 package lib.llpl;
 
+import java.util.Collections;
 import java.util.function.Supplier;
 import java.util.function.Function;
 import java.util.function.Consumer;
+
+import com.sun.jna.Native;
 
 /*
                                         Committed
@@ -26,8 +29,21 @@ import java.util.function.Consumer;
  */
 public final class Transaction {
     static {
-        AnyHeap.loadLlplLibrary();
+        loadLlplLibrary();
     }
+
+    static void loadLlplLibrary() {
+        try {
+            Native.register(com.sun.jna.NativeLibrary.getInstance("pmemllpl", Collections.emptyMap()));
+        } catch (NoClassDefFoundError e) {
+            throw new RuntimeException("JNA not found; cannot invoke pmemllpl functions", e);
+        } catch (UnsatisfiedLinkError e) {
+            throw new RuntimeException("Failed to link the pmemllpl library against JNA.", e);
+        } catch (NoSuchMethodError e) {
+            throw new RuntimeException("Obsolete version of JNA present; unable to register C library. Upgrade to JNA 4.0 or later", e);
+        }
+    }
+
 
     private State state;
     private int depth;

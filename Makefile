@@ -71,7 +71,7 @@ cleanex:
 	$(foreach example_dir,$(ALL_EXAMPLE_DIRS), rm -rf $(example_dir)/*.class;)
 
 tests: $(ALL_TEST_CLASSES)
-	$(foreach test,$^, $(JAVA) -ea -cp $(BASE_CLASSPATH):$(TEST_CLASSES_DIR):lib/jna-5.2.0.jar -Djava.library.path=/opt/local/lib $(PACKAGE_NAME)/$(notdir $(test:.class=));)
+	$(foreach test,$^, $(JAVA) -ea -cp $(BASE_CLASSPATH):$(TEST_CLASSES_DIR):lib/jna-5.2.0.jar -Djava.library.path=/usr/local/lib $(PACKAGE_NAME)/$(notdir $(test:.class=));)
 
 $(ALL_TEST_CLASSES): | $(TEST_CLASSES_DIR)
 

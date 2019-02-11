@@ -7,8 +7,11 @@
 
 package lib.llpl;
 
+import java.util.Collections;
 import java.util.function.Function;
 import java.util.function.Consumer;
+
+import com.sun.jna.Native;
 
 /**
  * The base class for all memory block classes.  A memory block represents an allocated portion
@@ -28,9 +31,25 @@ public abstract class AnyMemoryBlock {
     private long address;       // TODO: consider rename to offset or blockOffset
     private long directAddress; // TODO: consider rename to address or blockAddress
 
+//    static {
+//        AnyHeap.loadLlplLibrary();
+//    }
     static {
-        AnyHeap.loadLlplLibrary();
+        loadLlplLibrary();
     }
+
+    static void loadLlplLibrary() {
+        try {
+            Native.register(com.sun.jna.NativeLibrary.getInstance("pmemllpl", Collections.emptyMap()));
+        } catch (NoClassDefFoundError e) {
+            throw new RuntimeException("JNA not found; cannot invoke pmemllpl functions", e);
+        } catch (UnsatisfiedLinkError e) {
+            throw new RuntimeException("Failed to link the pmemllpl library against JNA.", e);
+        } catch (NoSuchMethodError e) {
+            throw new RuntimeException("Obsolete version of JNA present; unable to register C library. Upgrade to JNA 4.0 or later", e);
+        }
+    }
+
 
     // Constructor
     AnyMemoryBlock(AnyHeap heap, long size, boolean bounded, boolean transactional) {

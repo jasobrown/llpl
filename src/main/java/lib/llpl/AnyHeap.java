@@ -63,7 +63,7 @@ public abstract class AnyHeap {
         this.path = path;
         userSizes = new TreeMap<Long, Integer>();
         allocationClasses = new long[TOTAL_ALLOCATION_CLASSES];
-        poolHandle = pmemllpl_heap_open(path, requestedSize, allocationClasses);
+        poolHandle = pmemllpl_heap_open(path, requestedSize);
         if (poolHandle == 0) throw new RuntimeException("Failed to open heap.");
         valid = true;
         if (requestedSize == 0) this.size = pmemllpl_heap_size(path);
@@ -313,7 +313,8 @@ public abstract class AnyHeap {
     private static native int pmemllpl_heap_free_tx(long poolHandle, long addr);
     private static native int pmemllpl_heap_free_atomic(long addr);
 
-    private static synchronized native long pmemllpl_heap_open(String path, long size, long[] allocationClasses);
+    private static synchronized native long pmemllpl_heap_open(String path, long size);
+//    private static synchronized native long pmemllpl_heap_open(String path, long size, long[] allocationClasses);
     private static synchronized native int pmemllpl_heap_register_alloc_class(long poolHandle, long size);
     private static synchronized native void pmemllpl_heap_close(long poolHandle);
 

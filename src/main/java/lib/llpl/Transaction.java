@@ -163,8 +163,8 @@ public final class Transaction {
     }
 
     private static native int pmemllpl_tx_start(long poolHandle);
-    private static native void pmemllpl_tx_commit();
-    private static native void pmemllpl_tx_end();
+    static native void pmemllpl_tx_commit();
+    static native void pmemllpl_tx_end();
     private static native void pmemllpl_tx_abort();
-    private static native int pmemllpl_tx_state();
+    public static native int pmemllpl_tx_state();
 }

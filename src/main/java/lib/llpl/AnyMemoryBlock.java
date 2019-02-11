@@ -54,7 +54,6 @@ public abstract class AnyMemoryBlock {
     // Constructor
     AnyMemoryBlock(AnyHeap heap, long size, boolean bounded, boolean transactional) {
         this.heap = heap;
-        // System.out.println("creating AMB of size " + size + ", bounded = " + bounded + ", transactional = " + transactional);
         long allocSize = size + baseOffset();
 
         // JEB: do we really need a Transaction instance here when transactional is true?
@@ -63,9 +62,11 @@ public abstract class AnyMemoryBlock {
             this.address = transactional ? heap.allocateTransactional(allocSize) : heap.allocateAtomic(allocSize);
             if (address == 0) throw new HeapException("Failed to allocate memory block of size " + size);
             this.directAddress = directAddress(heap, address);
-            if (bounded) setPersistentSize(size);
+            if (bounded) {
+                setPersistentSize(size);
+            }
             else this.size = -1;
-        };        
+        };
         if (transactional) new Transaction(heap).run(body);
         else body.run();
         // Stats.current.allocStats.update(getClass().getName(), allocSize, 0, 1);   // uncomment for allocation stats
@@ -456,7 +457,12 @@ public abstract class AnyMemoryBlock {
 
     void setPersistentSize(long size) {
         long address = directAddress + SIZE_OFFSET;
-        pmemllpl_memblock_add_to_tx(heap().poolHandle(), address, 8);
+        int result = pmemllpl_memblock_add_to_tx(heap().poolHandle(), address, 8);
+
+        // TODO:JEB this is a hack around my crappy impl and use of pmemllpl_memblock_add_to_tx
+        if (result == 1)
+            Transaction.pmemllpl_tx_commit();
+
         setAbsoluteLong(address, size);
         this.size = size;     
     }
